@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Node:
 
     def __init__(self):
@@ -14,80 +15,48 @@ class Node:
         self.mass = 0
         self.center = 0
     
+    def cond_checking_support(self, pos, mass, new_bounds, sis, aux, nodes):
+        cond = pos > aux[1]
+        index = 0
+        for count, state in enumerate(reversed(cond)):
+            if state == False:
+                index += 2**count
+        nodes[index] = Node()
+        nodes[index].insert(pos, mass, new_bounds[index], sis)
+
+
     def insert(self, pos, mass, bounds, sis):
-        
-        flag = np.argwhere(np.all(sis > bounds[0], axis=1) & np.all(sis < bounds[1], axis=1)).shape[0]
-        if flag == 0:
-            return
         
         self.mass += mass
         self.center += mass*pos
 
-        if flag == 1:
+        if self.mass == mass:
             return
+        nodes = [self.node1, self.node2, self.node3, self.node4, self.node5, self.node6, self.node7, self.node8]
 
         middle = (bounds[1] - bounds[0]) / 2
         aux = np.concatenate(([bounds[0]], [bounds[0] + middle]), axis=0) 
         aux2 = np.concatenate(([bounds[0] + middle], [bounds[1]]), axis=0)
-
-        if pos[0] > aux[1,0]:
-            if pos[1] > aux[1,1]:
-                if pos[2] > aux[1,2]:
-
-                    self.node1 = Node()
-                    self.node1.insert(pos, mass, aux2, sis)
-                    return
-                
-                else:
-
-                    self.node2 = Node()
-                    self.node2.insert(pos, mass, np.concatenate((aux2[:,:-1], aux[:,-1:]), axis=1), sis)
-                    return
-                   
-            elif pos[2] > aux[1,2]:
-
-                self.node3 = Node()
-                self.node3.insert(pos, mass, np.concatenate((aux2[:,:-2], aux[:,1:-1], aux2[:,-1:]), axis=1), sis)
-                return
-            
-            else:
-
-                self.node4 = Node()
-                self.node4.insert(pos, mass, np.concatenate((aux2[:,:-2], aux[:,-2:]), axis=1), sis)
-                return
+        index = 0
+        new_bounds = [aux2,
+                np.concatenate((aux2[:,:-1], aux[:,-1:]), axis=1),
+                np.concatenate((aux2[:,:-2], aux[:,1:-1], aux2[:,-1:]), axis=1),
+                np.concatenate((aux2[:,:-2], aux[:,-2:]), axis=1),
+                np.concatenate((aux[:,:-2], aux2[:,-2:]), axis=1),
+                np.concatenate((aux[:,:-2],aux2[:,1:-1], aux[:,-1:]), axis=1),
+                np.concatenate((aux[:,:-1], aux2[:,-1:]), axis=1),
+                aux]
         
-        elif pos[1] > aux[1,1]:
-            if pos[2] > aux[1,2]:
-           
-                self.node5 = Node()
-                self.node5.insert(pos, mass, np.concatenate((aux[:,:-2], aux2[:,-2:]), axis=1), sis)
-                return
-            
-            else:
-             
-                self.node6 = Node()
-                self.node6.insert(pos, mass, np.concatenate((aux[:,:-2], aux2[:,1:-1], aux[:,-1:]), axis=1), sis)
-                return
-        
-        elif pos[2] > aux[1,2]:
-        
-            self.node7 = Node()
-            self.node7.insert(pos, mass, np.concatenate((aux[:,:-1], aux2[:,-1:]), axis=1), sis)
-            return
-                    
-        else:
-      
-            self.node8 = Node()
-            self.node8.insert(pos, mass, aux, sis)
-            return
+        if not np.any(nodes):
+            self.cond_checking_support((self.center - mass * pos) / (self.mass - mass), self.mass - mass, new_bounds, sis, aux, nodes)
+        self.cond_checking_support(pos, mass, new_bounds, sis, aux, nodes)
 
     def build_tree(self, sis, masses, bounds):
+        i=0
         for pos, mass in zip(sis, masses):
             self.insert(pos, mass, bounds, sis)
 
-    def calc_forces(self):
-        if self == None: 
-            return
+    def calc_forces(self, pos, bounds, accel):
 
         aux = np.concatenate(([bounds[0]], [bounds[1]/2]), axis=0) 
         aux2 = np.concatenate(([bounds[1] / 2], [bounds[1]]), axis=0) 
@@ -95,31 +64,49 @@ class Node:
         leng = abs(bounds[0][0] - bounds[1][0])
         
         if leng / dist < 1:
-            accel += (self.mass * (pos - center)) / (dist**3 )
+            accel += (self.mass * (pos - self.center/self.mass)) / (dist**3 )
         
         else:
-            self.node1.calc_forces(pos, mass, aux2, sis)
-            self.node2.calc_forces(pos, mass, np.concatenate((aux2[:,:-1], aux[:,-1:]), axis=1), sis)             
-            self.node3.calc_forces(pos, mass, np.concatenate((aux2[:,:-2], aux[:,1:-1], aux2[:,-1:]), axis=1), sis)
-            self.node4.calc_forces(pos, mass, np.concatenate((aux2[:,:-2], aux[:,-2:]), axis=1), sis)
-            self.node5.calc_forces(pos, mass, np.concatenate((aux[:,:-2], aux2[:,-2:]), axis=1), sis)
-            self.node6.calc_forces(pos, mass, np.concatenate((aux[:,:-2], aux2[:,1:-1], aux[:,-1:]), axis=1), sis)
-            self.node7.calc_forces(pos, mass, np.concatenate((aux[:,:-1], aux2[:,-1:]), axis=1), sis)
-            self.node8.calc_forces(pos, mass, aux, sis)
+            if self.node1:
+                if self.node1.mass != 0:
+                    self.node1.calc_forces(pos, aux2, accel)
+            if self.node2:
+                if self.node2.mass != 0:
+                    self.node2.calc_forces(pos, np.concatenate((aux2[:,:-1], aux[:,-1:]), axis=1), accel)             
+            if self.node3:
+                if self.node3.mass != 0:
+                    self.node3.calc_forces(pos, np.concatenate((aux2[:,:-2], aux[:,1:-1], aux2[:,-1:]), axis=1), accel)
+            if self.node4:
+                if self.node4.mass != 0:
+                    self.node4.calc_forces(pos, np.concatenate((aux2[:,:-2], aux[:,-2:]), axis=1), accel)
+            if self.node5:
+                if self.node5.mass != 0:
+                    self.node5.calc_forces(pos, np.concatenate((aux[:,:-2], aux2[:,-2:]), axis=1), accel)
+            if self.node6:
+                if self.node6.mass != 0:
+                    self.node6.calc_forces(pos, np.concatenate((aux[:,:-2], aux2[:,1:-1], aux[:,-1:]), axis=1), accel)
+            if self.node7:
+                if self.node7.mass != 0:
+                    self.node7.calc_forces(pos, np.concatenate((aux[:,:-1], aux2[:,-1:]), axis=1), accel)
+            if self.node8:
+                if self.node8.mass != 0:
+                    self.node8.calc_forces(pos, aux, accel)
 
 def calc_bounds(sis):
-    return np.array([np.array(3*[np.amin(sis)-10]), np.array(3*[np.amax(sis)+10])])
+    return np.array([np.array(3*[np.amin(sis)-2]), np.array(3*[np.amax(sis)+2])])
 
 root = Node()
-n = 10
+n = 100000
 nNonBar = 9
-sis = np.random.rand(n, 3)
+sis = np.random.rand(n, 3)*10
 bounds = calc_bounds(sis)
-v = np.random.rand(n, 3)
+v = np.random.rand(3)
 barMass = 1
 nonBarMass = 1
 masses = np.concatenate((nNonBar*[nonBarMass], (n-nNonBar)*[barMass]), axis=None)
 root.build_tree(sis, masses, bounds)
-print(root.mass)
-print(root.center/root.mass)
+print("finished")
+accel = np.random.rand(n, 3)
+for i in range(n):
+    root.calc_forces(sis[i], bounds, accel[i])
 

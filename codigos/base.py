@@ -23,7 +23,7 @@ sis=[]
 d=[]
 aux=[]
 q=[]
-n=4000
+n=5000
 nprint=n
 mass=1.6605*1e-19
 massb=1.6605*1e-27
@@ -54,6 +54,7 @@ G=6*1e-11
 c=9*1e9
 controle=0
 tsum=0
+tico=0
 teste=[]
 tf=[]
 while(controle==0 and j<1e5):
@@ -66,6 +67,8 @@ while(controle==0 and j<1e5):
         tf.append(tsum)
         teste.append(anorm[400])
         sis=sis.tolist()
+    print(tico)
+    tico+=1
     aux=[]
     aux2=[]
     aux3=[]
