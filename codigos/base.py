@@ -23,7 +23,7 @@ sis=[]
 d=[]
 aux=[]
 q=[]
-n=5000
+n=4000
 nprint=n
 mass=1.6605*1e-19
 massb=1.6605*1e-27
@@ -31,7 +31,7 @@ charge=1.6*1e-19
 m=[]
 cont_el=0
 t=0.0005
-nb=200
+nb=10
 j=0
 v=[]#questionar se seria necessario gerar velocidades randômicas para as partículas
 for i in range(n):
@@ -57,7 +57,8 @@ tsum=0
 tico=0
 teste=[]
 tf=[]
-while(controle==0 and j<1e5):
+start = time.time()
+while(controle==0 and j<1):
     if(j):
         print(t)
         anorm=np.sqrt(np.sum(a**2,axis=1))
@@ -65,7 +66,7 @@ while(controle==0 and j<1e5):
         t=0.005/anorm[np.argmax(anorm)]
         tsum+=t
         tf.append(tsum)
-        teste.append(anorm[400])
+        teste.append(anorm[100])
         sis=sis.tolist()
     print(tico)
     tico+=1
@@ -150,9 +151,8 @@ while(controle==0 and j<1e5):
     sis=np.array(sis)+v*t
     v+=a*t/2
     j+=1
-print(m)
+print(time.time() - start)
 ax.scatter(np.reshape(sis[:,:-2],n),np.reshape(sis[:,1:-1],n),np.reshape(sis[:,2:],n),c='r',marker='o')
 ax2.plot(tf,teste)
-print(time.time()-start)
 plt.show()
 
