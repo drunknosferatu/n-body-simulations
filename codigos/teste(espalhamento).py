@@ -52,7 +52,6 @@ sis.append([0,0.3,0])
 v=np.array([[-1.6,0,0],[0,0,0]])
 m=np.reshape(np.array(m),(n,1))
 q=np.reshape(np.array(q),(n,1))
-v-=np.mean(m*v,0)/np.mean(m)
 auxplot=np.array(sis)
 ax.scatter(np.reshape(auxplot[:,:-2],n),np.reshape(auxplot[:,1:-1],n),np.reshape(auxplot[:,2:],n),c='b',marker='D',s=m)
 ael=[]

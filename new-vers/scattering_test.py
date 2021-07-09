@@ -54,7 +54,7 @@ class Node:
         ind_exclud = np.argwhere(np.any((aux_dist) != 0, axis=1)).flatten()
         dist = np.sqrt(np.sum((aux_dist)**2, axis=1))
         dist = np.around(dist, decimals=15)
-        #print(dist)
+        print(dist)
         if ind_exclud.shape[0] != sis.shape[0]:
             oriented_dist = aux_dist[ind_exclud] / (dist[ind_exclud]**3)[:,None]
             accel[ind_exclud] += 0*self.mass * oriented_dist - 9*1e9 * charges[ind_exclud,None] * self.charge * oriented_dist / masses[ind_exclud,None]
@@ -72,39 +72,56 @@ class Node:
 
 
 
+
 def calc_bounds(sis):
     return np.array([np.array(3*[np.amin(sis) - 0.1]), np.array(3*[np.amax(sis) + 0.1])])
 
 
 fig = plt.figure()
-ax = fig.add_subplot(projection = '3d')
+fig2 = plt.figure()
+ax = fig.add_subplot()
+ax2 = fig2.add_subplot()
+xplot = []
+yplot = []
+xplot2 = []
+yplot2 = []
+tplot = []
+dplot = []
+
 t = 0.00005
 control = None
-n = 50000
-nBar = 0
-BarMass = 1
-nonBarMass = 1
-charge = 1.6 
+n = 2
+nBar = 2
+BarMass = 1.6605*1e-27
+nonBarMass = 1.6605*1e-15
+charge = 1.6*1e-19
 
-sis = np.random.randn(n, 3) * 10
-v = np.random.rand(n,3)
+
+sis = np.array([[1.0,0.2,0],[0,0.3,0]])
+v = np.array([[-1.6,0,0],[0,0,0]])
 charges = np.concatenate((nBar * [charge], np.zeros((n-nBar))), axis=None)
 masses = np.concatenate((nBar * [BarMass], (n-nBar) * [nonBarMass]), axis=None)
 
+j=0
 start = time()
 while not control:
     accel = np.zeros((n, 3))
     bounds = calc_bounds(sis)
     root = Node(masses, sis, charges, abs(bounds[0,0]-bounds[1,0]))
     root.insert(sis, masses, bounds, charges) 
-    print(t)
+    xplot.append(sis[0,0])
+    yplot.append(sis[0,1])
+    xplot2.append(sis[1,0])
+    yplot2.append(sis[1,1])
     root.calc_forces(sis, charges, masses, accel)
     v += accel *  t / 2
     sis += v * t
     v += accel * t / 2
-    control = True #np.any(abs(accel) <= 1e-6)
-    #t = 0.00005 / np.amax(abs(accel))
-#root.print_tree()i
+    anorm = np.sqrt(np.sum(accel**2, axis=1))
+    control = np.all(anorm <= 67*1e-3)
+    j+=1
+    t = 5*1e-5 / np.amax(anorm)
 print(time()-start)
-ax.scatter(np.reshape(sis[:,:-2],n),np.reshape(sis[:,1:-1],n),np.reshape(sis[:,2:],n),c='r',marker='o')
-#plt.show()
+ax.plot(xplot,yplot)
+ax.plot(xplot2,yplot2)
+plt.show()
