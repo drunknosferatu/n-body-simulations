@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from time import time
+from random import random
 #check for negative numbers
 class Node:
 
@@ -52,9 +53,8 @@ class Node:
         aux_dist =  self.center / self. mass - sis
         aux_dist = np.around(aux_dist, decimals=15)
         ind_exclud = np.argwhere(np.any((aux_dist) != 0, axis=1)).flatten()
-        dist = np.sqrt(np.sum((aux_dist)**2, axis=1))
+        dist = np.linalg.norm(aux_dist, axis=1)
         dist = np.around(dist, decimals=15)
-        print(dist)
         if ind_exclud.shape[0] != sis.shape[0]:
             oriented_dist = aux_dist[ind_exclud] / (dist[ind_exclud]**3)[:,None]
             accel[ind_exclud] += 0*self.mass * oriented_dist - 9*1e9 * charges[ind_exclud,None] * self.charge * oriented_dist / masses[ind_exclud,None]
@@ -77,16 +77,9 @@ def calc_bounds(sis):
     return np.array([np.array(3*[np.amin(sis) - 0.1]), np.array(3*[np.amax(sis) + 0.1])])
 
 
-fig = plt.figure()
-fig2 = plt.figure()
-ax = fig.add_subplot()
-ax2 = fig2.add_subplot()
-xplot = []
-yplot = []
-xplot2 = []
-yplot2 = []
+err = []
 tplot = []
-dplot = []
+x_axis=np.array([1,0])
 
 t = 0.00005
 control = None
@@ -99,8 +92,9 @@ charge = 1.6*1e-19
 
 sis = np.array([[1.0,0.2,0],[0,0.3,0]])
 v = np.array([[-1.6,0,0],[0,0,0]])
+vi = np.array([-1.6,0])
 charges = np.concatenate((nBar * [charge], np.zeros((n-nBar))), axis=None)
-masses = np.concatenate((nBar * [BarMass], (n-nBar) * [nonBarMass]), axis=None)
+masses = np.concatenate(([random()*1e-27],[BarMass] ), axis=None)
 
 j=0
 start = time()
@@ -108,20 +102,29 @@ while not control:
     accel = np.zeros((n, 3))
     bounds = calc_bounds(sis)
     root = Node(masses, sis, charges, abs(bounds[0,0]-bounds[1,0]))
-    root.insert(sis, masses, bounds, charges) 
-    xplot.append(sis[0,0])
-    yplot.append(sis[0,1])
-    xplot2.append(sis[1,0])
-    yplot2.append(sis[1,1])
+    root.insert(sis, masses, bounds, charges)
     root.calc_forces(sis, charges, masses, accel)
+    
+    r = v[0] - (masses[0]*v[0] + masses[1]*v[1]) / root.mass
+    r = np.delete(r, 2)
+    r = r / np.linalg.norm(r)
+    cos = np.dot(r, x_axis)
+    sin = np.sin(np.arccos(cos))
+    tg_real = np.tan(np.arccos(np.dot(np.delete(sis[0], 2) / np.linalg.norm(sis[0]), x_axis)))
+    tg_calc = sin / (cos + (masses[0] * 1.6) / (masses[1] * np.linalg.norm(v[1] - v[0])))
+    print(tg_calc)
+    err.append(tg_calc-tg_real)
+    tplot.append(time()-start)
+    
+    #print(t)
     v += accel *  t / 2
     sis += v * t
     v += accel * t / 2
-    anorm = np.sqrt(np.sum(accel**2, axis=1))
+    anorm = np.linalg.norm(accel, axis=1)
     control = np.all(anorm <= 67*1e-3)
     j+=1
     t = 5*1e-5 / np.amax(anorm)
+
 print(time()-start)
-ax.plot(xplot,yplot)
-ax.plot(xplot2,yplot2)
+plt.plot(tplot, err)
 plt.show()
