@@ -60,10 +60,10 @@ class Node:
             accel[ind_exclud] += 0*self.mass * oriented_dist - 9*1e9 * charges[ind_exclud,None] * self.charge * oriented_dist / masses[ind_exclud,None]
         else:
             oriented_dist = aux_dist / (dist**3)[:,None]
-            ind_theta = np.argwhere(self.leng / dist < 0.5).flatten()
+            ind_theta = np.argwhere(self.leng / dist < 0.1).flatten()
             if ind_theta.shape[0] > 0:
                 accel[ind_theta] += 0*self.mass * oriented_dist[ind_theta] - 9*1e9 * charges[ind_theta,None] * self.charge * oriented_dist[ind_theta] / masses[ind_theta,None]
-            ind_theta = np.argwhere(self.leng / dist > 0.5).flatten()
+            ind_theta = np.argwhere(self.leng / dist >= 0.1).flatten()
             if ind_theta.shape[0] > 0:
                 for call in call_strings:
                      if getattr(self,call):
@@ -90,11 +90,12 @@ nonBarMass = 1.6605*1e-15
 charge = 1.6*1e-19
 
 
-sis = np.array([[1.0,0.2,0],[0,0.3,0]])
-v = np.array([[-1.6,0,0],[0,0,0]])
-vi = np.array([-1.6,0])
+sis = np.array([[1.0,-0.2,0.0],[0.0,0.0,0.0]])
+v = np.array([[0.0,0.0,0.0],[1.6,0.0,0.0]])
 charges = np.concatenate((nBar * [charge], np.zeros((n-nBar))), axis=None)
-masses = np.concatenate(([random()*1e-27],[BarMass] ), axis=None)
+masses = np.concatenate(([BarMass],[BarMass] ), axis=None)
+E0 = np.sum(0.5 * BarMass * np.linalg.norm(v, axis = 1)**2) + 9e9 * charge**2 / np.linalg.norm(sis[0] - sis[1])
+
 
 j=0
 start = time()
@@ -104,27 +105,28 @@ while not control:
     root = Node(masses, sis, charges, abs(bounds[0,0]-bounds[1,0]))
     root.insert(sis, masses, bounds, charges)
     root.calc_forces(sis, charges, masses, accel)
-    
-    r = v[0] - (masses[0]*v[0] + masses[1]*v[1]) / root.mass
-    r = np.delete(r, 2)
-    r = r / np.linalg.norm(r)
-    cos = np.dot(r, x_axis)
-    sin = np.sin(np.arccos(cos))
-    tg_real = np.tan(np.arccos(np.dot(np.delete(sis[0], 2) / np.linalg.norm(sis[0]), x_axis)))
-    tg_calc = sin / (cos + (masses[0] * 1.6) / (masses[1] * np.linalg.norm(v[1] - v[0])))
-    print(tg_calc)
-    err.append(tg_calc-tg_real)
-    tplot.append(time()-start)
-    
-    #print(t)
+    err.append(sis[1,1])
+    tplot.append(sis[1,0])
     v += accel *  t / 2
     sis += v * t
     v += accel * t / 2
+    print((E0 - np.sum(0.5 * BarMass * np.linalg.norm(v, axis = 1)**2) - 9e9 * charge**2 / np.linalg.norm(sis[0] - sis[1])) / E0)
     anorm = np.linalg.norm(accel, axis=1)
-    control = np.all(anorm <= 67*1e-3)
+    control = np.all(anorm <= 70e-3)
     j+=1
-    t = 5*1e-5 / np.amax(anorm)
+    t = 5e-5
 
-print(time()-start)
+
+
+bounds = calc_bounds(sis)
+root = Node(masses, sis, charges, abs(bounds[0,0]-bounds[0,1]))
+root.insert(sis, masses, bounds, charges)
+v -= accel*t/2
+r = v[1] - (v[0] * masses[0]  + v[1] * masses[1]) / root.mass
+r = np.delete(r, 2)
+cos = np.dot(r, [1,0])
+sin = np.dot(r, [0,1])
+tg_real = sis[1,1] / sis[1,0]
+tg_calc = sin / (cos + 0.8)
 plt.plot(tplot, err)
 plt.show()
