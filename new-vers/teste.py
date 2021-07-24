@@ -1,10 +1,42 @@
-import numpy as np
-arr=np.array([[2, 2]])
-arr2=np.array([[1, 2]])
-arr4=[None, None, None]
-arr5=np.concatenate((arr2,arr2,arr),axis=0)
-arr2=[1,1]
-arr3=[3,3]
-#arr3=np.concatenate((arr4[:,:-1],arr5[:,-1:]), axis=1)
-print(arr5)
-print(np.any(arr5>0, axis=1))
+from multiprocessing import Process, Queue
+import difflib, random, time
+
+def f2(wordlist, mainwordlist, q):
+    for mainword in mainwordlist:
+        matches = difflib.get_close_matches(mainword,wordlist,len(wordlist),0.7)
+        q.put(matches)
+
+if __name__ == '__main__':
+
+    # constants (for 50 input words, find closest match in list of 100 000 comparison words)
+    q = Queue()
+    wordlist = ["".join([random.choice([letter for letter in "abcdefghijklmnopqersty"]) for lengthofword in range(5)]) for nrofwords in range(100000)]
+    mainword = "hello"
+    mainwordlist = [mainword for each in range(50)]
+
+    # normal approach
+    t = time.time()
+    for mainword in mainwordlist:
+        matches = difflib.get_close_matches(mainword,wordlist,len(wordlist),0.7)
+        q.put(matches)
+    print (time.time()-t)
+
+    # split work into 5 or 10 processes
+    processes = 5
+    def splitlist(inlist, chunksize):
+        return [inlist[x:x+chunksize] for x in range(0, len(inlist), chunksize)]
+    print (len(mainwordlist)/processes)
+    mainwordlistsplitted = splitlist(mainwordlist, len(mainwordlist)/processes)
+    print ("list ready")
+
+    t = time.time()
+    for submainwordlist in mainwordlistsplitted:
+        print ("sub")
+        p = Process(target=f2, args=(wordlist,submainwordlist,q,))
+        p.Daemon = True
+        p.start()
+    for submainwordlist in mainwordlistsplitted:
+        p.join()
+    print (time.time()-t)
+    while True:
+        print (q.get())
