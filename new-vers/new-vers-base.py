@@ -80,25 +80,38 @@ class Node:
 def calc_bounds(sis):
     return np.array([np.array(3*[np.amin(sis) - 0.1]), np.array(3*[np.amax(sis) + 0.1])])
 
+def calc_energ(sis, v, masses, charge):
+    x = sis[:,0:1]
+    y = sis[:,1:2]
+    z = sis[:,2:3]
+    distx = x.T - x
+    disty = y.T - y
+    distz = z.T - z
+    inv_r = np.sqrt(distx**2 + disty**2 + distz**2)
+    args = np.argwhere(inv_r >0)
+    inv_r[args] = 1.0/inv_r[args]
+    remake_sis =  np.array(np.where(dist!=0))
+    args = np.argwhere(dist!=0)
+    return np.dot(0.5 * masses, np.linalg.norm(v, axis = 1)**2) + np.sum(9e9 * charge**2 / remake_sis) + 6.7e-11 * np.sum(np.sum(np.triu(-(masses*masses.T)*inv_r,1)))
+
 
 fig3d = plt.figure()
 ax3d = fig3d.add_subplot(projection = '3d')
 
 t = 0.005
 control = None
-n = 4000
-nBar = 200 
+n = 1024000
+nBar = 51200 
 BarMass = 1.6605*1e-27
 nonBarMass = 1.6605*1e-15
 charge = 1.6*1e-19
 
-sis = np.random.randn(n, 3) / ((7/4) ** (1/3))
-v = np.random.rand(n,3)
+sis = np.random.randn(n, 3) * ((4.5) ** (1/3))
+v = np.zeros((n,3))
 charges = np.concatenate((nBar * [charge], np.zeros((n-nBar))), axis=None)
 masses = np.concatenate((nBar * [BarMass], (n-nBar) * [nonBarMass]), axis=None)
-E0 = np.dot(0.5 * masses, np.linalg.norm(v, axis = 1)**2) + np.sum(9e9 * charge**2 / np.array(np.where(np.linalg.norm(sis-sis, axis=1)!=0)))
 
-start = time()
+auxt = start = time()
 while not control:
     accel = np.zeros((n, 3))
     bounds = calc_bounds(sis)
@@ -108,13 +121,15 @@ while not control:
     v += accel *  t / 2
     sis += v * t
     v += accel * t / 2
-    print(t)
-    print(time()-start)
     anorm = np.linalg.norm(accel, axis=1)
-    control = np.any(anorm <= 5e-30)
-    t =  0.005 / np.amax(anorm) if 0.005 / np.amax(anorm) <= 0.5 else 0.5
+    amax = np.amax(anorm)
+    print(amax)
+    control = np.all(anorm <= 5e-5)
+    t =  0.005 / amax if 0.005 / amax <= 0.5 else 0.5
+    print(auxt - time())
+    auxt = time()
 
 print(time()-start)
 ax3d.scatter(np.reshape(sis[:,:-2],n),np.reshape(sis[:,1:-1],n),np.reshape(sis[:,2:],n),c='r',marker='o')
-print(abs(100*(np.dot(0.5 * masses, np.linalg.norm(v, axis = 1)**2) + np.sum(9e9 * charge**2 / np.array(np.where(np.linalg.norm(sis-sis, axis=1)!=0)))) / E0))
+
 plt.show()
